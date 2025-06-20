@@ -10,9 +10,28 @@ RUN cargo install --locked cargo-leptos --version 0.2.35
 RUN npm install -g sass
 
 WORKDIR /work
+
+# Copy dependency files first for better caching
+COPY Cargo.toml Cargo.lock ./
+COPY rust-toolchain.toml ./
+
+# Create a dummy src/main.rs and src/lib.rs to build dependencies
+RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs
+
+# Build dependencies first (this layer will be cached unless Cargo.toml changes)
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/work/target \
+    cargo build --release && rm -rf src
+
+# Now copy the actual source code
 COPY . .
 
-RUN cargo leptos build --release
+# Build the actual application
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/work/target \
+    cargo leptos build --release && \
+    cp target/release/ytmp3 /tmp/ytmp3 && \
+    cp -r target/site /tmp/site
 
 FROM --platform=linux/amd64 debian:bookworm-slim as runtime
 WORKDIR /app
@@ -33,8 +52,8 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary and static assets
-COPY --from=builder /work/target/release/ytmp3 /app/
-COPY --from=builder /work/target/site /app/site
+COPY --from=builder /tmp/ytmp3 /app/ytmp3
+COPY --from=builder /tmp/site /app/site
 COPY --from=builder /work/Cargo.toml /app/
 
 # Verify the binary architecture and make it executable

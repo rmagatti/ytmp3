@@ -1,13 +1,34 @@
+# Build artifacts
 target/
 node_modules/
+
+# Git and development files
 .git/
 .gitignore
 README.md
 Dockerfile
 .dockerignore
+*.md
+
+# Environment and logs
 .env
 .env.local
 *.log
+
+# Test artifacts
 end2end/node_modules/
 end2end/test-results/
 end2end/playwright-report/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
