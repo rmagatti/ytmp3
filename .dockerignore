@@ -1,0 +1,13 @@
+target/
+node_modules/
+.git/
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+.env
+.env.local
+*.log
+end2end/node_modules/
+end2end/test-results/
+end2end/playwright-report/
