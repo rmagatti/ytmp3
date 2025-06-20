@@ -24,7 +24,7 @@ RUN apt-get update -y \
         python3 \
         python3-pip \
         curl \
-    && pip3 install --no-cache-dir yt-dlp \
+    && pip3 install --no-cache-dir --break-system-packages yt-dlp \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
