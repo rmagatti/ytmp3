@@ -12,7 +12,7 @@ RUN npm install -g sass
 WORKDIR /work
 
 # Copy dependency files first for better caching
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 COPY rust-toolchain.toml ./
 
 # Create a dummy src/main.rs and src/lib.rs to build dependencies
