@@ -73,6 +73,33 @@ docker build -t ytmp3 .
 docker run -p 3000:3000 ytmp3
 ```
 
+### GitHub Container Registry (GHCR)
+
+#### Automatic Building with GitHub Actions
+The project includes a GitHub Actions workflow (`.github/workflows/docker.yml`) that automatically:
+- Builds the Docker image on every push to main
+- Pushes to GitHub Container Registry
+- Tags with branch name, commit SHA, and `latest`
+
+#### Manual Building and Pushing
+```bash
+# First, authenticate with GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u rmagatti --password-stdin
+
+# Use the provided script
+./build-and-push.sh rmagatti
+
+# Or manually
+docker build -t ghcr.io/rmagatti/ytmp3:latest .
+docker push ghcr.io/rmagatti/ytmp3:latest
+```
+
+#### Using the Image from GHCR
+```bash
+docker pull ghcr.io/rmagatti/ytmp3:latest
+docker run -p 3000:3000 ghcr.io/rmagatti/ytmp3:latest
+```
+
 ### Railway Deployment
 The project is configured for Railway deployment with:
 - `Dockerfile` with multi-stage build
@@ -80,7 +107,24 @@ The project is configured for Railway deployment with:
 - `.dockerignore` for optimized builds
 
 Required system dependencies in production:
-- `yt-dlp` (for YouTube video downloading and audio conversion)
+- `yt-dlp` (for YouTube video downloading and audio extraction)
+- `ffmpeg` (required by yt-dlp for audio format conversion)
 - `python3` and `pip3` (for yt-dlp installation)
 
 The Docker image includes all necessary dependencies and is ready for deployment to Railway or any Docker-compatible platform.
+
+## Important Notes
+
+### YouTube Access Limitations
+Due to YouTube's bot detection and anti-automation measures:
+- Some videos may fail to download with "Sign in to confirm you're not a bot" errors
+- Age-restricted videos require authentication and cannot be downloaded
+- Private or region-restricted videos will fail
+- The service includes user-friendly error messages for common issues
+- Anti-bot measures in place:
+  - Custom user agents
+  - Android player client extraction
+  - Random sleep intervals between requests
+  - Latest yt-dlp version
+
+This is a limitation of YouTube's platform, not the application itself.

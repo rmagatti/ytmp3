@@ -1,4 +1,5 @@
-FROM rustlang/rust:nightly-bookworm as builder
+FROM --platform=linux/amd64 rustlang/rust:nightly-bookworm as builder
+
 RUN apt update && apt install -y bash curl npm libc-dev binaryen \
     protobuf-compiler libssl-dev libprotobuf-dev gcc git g++ libc-dev \
     make binaryen perl
@@ -13,10 +14,10 @@ COPY . .
 
 RUN cargo leptos build --release
 
-FROM debian:bookworm-slim as runtime
+FROM --platform=linux/amd64 debian:bookworm-slim as runtime
 WORKDIR /app
 
-# Install runtime dependencies including yt-dlp
+# Install runtime dependencies including yt-dlp and ffmpeg
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
         openssl \
@@ -24,15 +25,20 @@ RUN apt-get update -y \
         python3 \
         python3-pip \
         curl \
-    && pip3 install --no-cache-dir --break-system-packages yt-dlp \
+        file \
+        ffmpeg \
+    && pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary and static assets
-COPY --from=builder /work/target/server/release/ytmp3 /app/
+COPY --from=builder /work/target/release/ytmp3 /app/
 COPY --from=builder /work/target/site /app/site
 COPY --from=builder /work/Cargo.toml /app/
+
+# Verify the binary architecture and make it executable
+RUN file /app/ytmp3 && chmod +x /app/ytmp3
 
 # Set environment variables for production
 ENV RUST_LOG="info"

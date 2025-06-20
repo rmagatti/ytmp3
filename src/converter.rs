@@ -121,6 +121,16 @@ pub mod server {
             .arg("-o")
             .arg(&output_template)
             .arg("--restrict-filenames") // Use safe filenames
+            .arg("--user-agent")
+            .arg("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            .arg("--sleep-interval")
+            .arg("1")
+            .arg("--max-sleep-interval")
+            .arg("5")
+            .arg("--extractor-args")
+            .arg("youtube:player_client=android,web")
+            .arg("--no-check-certificates")
+            .arg("--prefer-free-formats")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -158,7 +168,19 @@ pub mod server {
                     let mut jobs = JOB_STORE.write().await;
                     if let Some(job) = jobs.get_mut(&job_id) {
                         job.status = "error".to_string();
-                        job.error = Some(format!("yt-dlp failed: {}", error_msg));
+                        
+                        // Provide more user-friendly error messages
+                        let user_friendly_error = if error_msg.contains("Sign in to confirm you're not a bot") {
+                            "YouTube has detected automated access. This video may be restricted or require verification. Please try a different video or try again later.".to_string()
+                        } else if error_msg.contains("Video unavailable") {
+                            "This video is unavailable. It may be private, deleted, or restricted in your region.".to_string()
+                        } else if error_msg.contains("age-restricted") {
+                            "This video is age-restricted and cannot be downloaded without authentication.".to_string()
+                        } else {
+                            format!("Failed to download video: {}", error_msg.lines().next().unwrap_or("Unknown error"))
+                        };
+                        
+                        job.error = Some(user_friendly_error);
                     }
                 }
             }
