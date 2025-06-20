@@ -40,7 +40,7 @@ pub async fn convert_video(url: String) -> Result<ConvertResponse, ServerFnError
             Err(e) => Ok(ConvertResponse {
                 id: String::new(),
                 status: "error".to_string(),
-                message: format!("Failed to start conversion: {}", e),
+                message: format!("Failed to start conversion: {e}"),
             }),
         }
     }
@@ -62,7 +62,7 @@ pub async fn check_status(job_id: String) -> Result<ConvertResponse, ServerFnErr
             Err(e) => Ok(ConvertResponse {
                 id: job_id,
                 status: "error".to_string(),
-                message: format!("Failed to check status: {}", e),
+                message: format!("Failed to check status: {e}"),
             }),
         }
     }
@@ -88,7 +88,7 @@ async fn poll_conversion_status(
                 match response.status.as_str() {
                     "completed" => {
                         is_converting.set(false);
-                        download_url.set(Some(format!("/api/download/{}", job_id)));
+                        download_url.set(Some(format!("/api/download/{job_id}")));
                         break;
                     }
                     "error" => {
@@ -103,7 +103,7 @@ async fn poll_conversion_status(
             }
             Err(e) => {
                 is_converting.set(false);
-                error_message.set(Some(format!("Failed to check status: {}", e)));
+                error_message.set(Some(format!("Failed to check status: {e}")));
                 break;
             }
         }
@@ -188,7 +188,7 @@ fn HomePage() -> impl IntoView {
                 }
                 Err(e) => {
                     is_converting.set(false);
-                    error_message.set(Some(format!("Conversion failed: {}", e)));
+                    error_message.set(Some(format!("Conversion failed: {e}")));
                 }
             }
         });

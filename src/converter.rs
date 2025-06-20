@@ -25,6 +25,13 @@ pub mod server {
         std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new()))
     });
 
+    /// Starts a new conversion job for a YouTube URL.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if:
+    /// - Unable to create temporary directory
+    /// - Failed to store job in the job store
     pub async fn start_conversion(url: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let job_id = Uuid::new_v4().to_string();
         
@@ -53,6 +60,12 @@ pub mod server {
         Ok(job_id)
     }
 
+    /// Gets the current status of a conversion job.
+    /// 
+    /// # Errors
+    /// 
+    /// This function doesn't typically return errors, but wraps responses in Result
+    /// for consistency with the API interface.
     pub async fn get_job_status(job_id: &str) -> Result<ConvertResponse, Box<dyn std::error::Error + Send + Sync>> {
         let jobs = JOB_STORE.read().await;
         
@@ -80,6 +93,15 @@ pub mod server {
         }
     }
 
+    /// Retrieves the MP3 file contents for a completed conversion job.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if:
+    /// - Job not found
+    /// - Conversion not completed yet
+    /// - MP3 file not found or unable to read file
+    /// - File system I/O errors
     pub async fn get_mp3_file(job_id: &str) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let jobs = JOB_STORE.read().await;
         
@@ -188,7 +210,7 @@ pub mod server {
                 let mut jobs = JOB_STORE.write().await;
                 if let Some(job) = jobs.get_mut(&job_id) {
                     job.status = "error".to_string();
-                    job.error = Some(format!("Failed to execute yt-dlp: {}", e));
+                    job.error = Some(format!("Failed to execute yt-dlp: {e}"));
                 }
             }
         }

@@ -3,6 +3,25 @@ name = "ytmp3"
 version = "0.1.0"
 edition = "2021"
 
+[lints.clippy]
+# Deny panic-prone patterns
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"
+unreachable = "deny"
+
+# Warn about documentation issues
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+missing_safety_doc = "warn"
+undocumented_unsafe_blocks = "warn"
+
+# Additional safety lints
+indexing_slicing = "warn"
+arithmetic_side_effects = "warn"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
