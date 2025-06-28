@@ -195,55 +195,82 @@ fn HomePage() -> impl IntoView {
     };
 
     view! {
-        <div class="container">
-            <h1>"YouTube to MP3 Converter"</h1>
-            <p class="description">"Convert YouTube videos to MP3 files quickly and easily"</p>
-            
-            <div class="converter-form">
-                <div class="input-group">
-                    <input
-                        type="text"
-                        placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
-                        prop:value=move || url_input.get()
-                        on:input=move |ev| {
-                            url_input.set(event_target_value(&ev));
-                            error_message.set(None);
-                        }
-                        class="url-input"
-                        disabled=move || is_converting.get()
-                    />
-                    <button
-                        on:click=on_convert
-                        disabled=move || is_converting.get() || url_input.get().is_empty()
-                        class="convert-btn"
-                    >
-                        {move || if is_converting.get() { "Converting..." } else { "Convert to MP3" }}
-                    </button>
-                </div>
-                
-                {move || error_message.get().map(|msg| view! {
-                    <div class="error-message">{msg}</div>
-                })}
-                
-                {move || if is_converting.get() {
-                    Some(view! {
-                        <div class="progress-container">
-                            <div class="progress-bar">
-                                <div class="progress-fill"></div>
+        <div class="hero min-h-screen bg-gradient-to-br from-primary to-secondary">
+            <div class="hero-content text-center">
+                <div class="max-w-2xl">
+                    <h1 class="text-5xl font-bold mb-6">"YouTube to MP3 Converter"</h1>
+                    <p class="py-6 text-lg opacity-80">"Convert YouTube videos to MP3 files quickly and easily"</p>
+                    
+                    <div class="card bg-base-100 shadow-xl p-8">
+                        <div class="form-control gap-4">
+                            <div class="join w-full">
+                                <input
+                                    type="url"
+                                    placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                                    prop:value=move || url_input.get()
+                                    on:input=move |ev| {
+                                        url_input.set(event_target_value(&ev));
+                                        error_message.set(None);
+                                    }
+                                    class="input input-bordered join-item flex-1"
+                                    class:input-disabled=move || is_converting.get()
+                                />
+                                <button
+                                    on:click=on_convert
+                                    disabled=move || is_converting.get() || url_input.get().is_empty()
+                                    class="btn btn-primary join-item"
+                                >
+                                    {move || {
+                                        if is_converting.get() { 
+                                            view! {
+                                                <span class="loading loading-spinner loading-sm mr-2"></span>
+                                                "Converting..."
+                                            }.into_any()
+                                        } else { 
+                                            view! { 
+                                                "Convert to MP3"
+                                            }.into_any()
+                                        }
+                                    }}
+                                </button>
                             </div>
-                            <p>"Processing your video..."</p>
+                            
+                            {move || error_message.get().map(|msg| view! {
+                                <div class="alert alert-error">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{msg}</span>
+                                </div>
+                            })}
+                            
+                            {move || if is_converting.get() {
+                                Some(view! {
+                                    <div class="text-center space-y-4">
+                                        <progress class="progress progress-primary w-full"></progress>
+                                        <p class="text-base-content/70">"Processing your video..."</p>
+                                    </div>
+                                })
+                            } else {
+                                None
+                            }}
+                            
+                            {move || download_url.get().map(|url| view! {
+                                <div class="alert alert-success">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div class="flex-1">
+                                        <div class="text-lg font-semibold">"Conversion complete!"</div>
+                                        <div class="mt-4">
+                                            <a href=url download class="btn btn-success">"Download MP3"</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            })}
                         </div>
-                    })
-                } else {
-                    None
-                }}
-                
-                {move || download_url.get().map(|url| view! {
-                    <div class="download-container">
-                        <div class="success-message">"✓ Conversion complete!"</div>
-                        <a href=url download class="download-btn">"Download MP3"</a>
                     </div>
-                })}
+                </div>
             </div>
         </div>
     }

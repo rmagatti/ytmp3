@@ -1,0 +1,8 @@
+{
+  "name": "ytmp3",
+  "version": "0.1.0",
+  "devDependencies": {
+    "tailwindcss": "^4.0.0",
+    "daisyui": "^5.0.0"
+  }
+}
