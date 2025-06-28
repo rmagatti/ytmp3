@@ -39,6 +39,7 @@ uuid = { version = "1.0", features = ["v4"], optional = true }
 tempfile = { version = "3.0", optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }
 gloo-timers = { version = "0.3", features = ["futures"], optional = true }
+futures = { version = "0.3", optional = true }
 
 [features]
 hydrate = [
@@ -54,6 +55,7 @@ ssr = [
     "dep:uuid",
     "dep:tempfile",
     "dep:reqwest",
+    "dep:futures",
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",

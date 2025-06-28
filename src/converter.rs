@@ -25,6 +25,11 @@ pub mod server {
         std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new()))
     });
 
+    #[cfg(test)]
+    pub(crate) fn get_job_store() -> &'static JobStore {
+        &JOB_STORE
+    }
+
     /// Starts a new conversion job for a YouTube URL.
     /// 
     /// # Errors
@@ -221,5 +226,197 @@ pub mod server {
         url.contains("youtu.be/") || 
         url.contains("youtube.com/shorts/") ||
         url.contains("m.youtube.com/watch")
+    }
+}
+
+#[cfg(all(test, feature = "ssr"))]
+mod tests {
+    use super::server::*;
+    use std::time::Duration;
+    use tempfile::NamedTempFile;
+    use tokio::time::timeout;
+
+    #[test]
+    fn test_is_valid_youtube_url() {
+        // Valid URLs
+        assert!(is_valid_youtube_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+        assert!(is_valid_youtube_url("https://youtube.com/watch?v=dQw4w9WgXcQ"));
+        assert!(is_valid_youtube_url("http://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+        assert!(is_valid_youtube_url("https://youtu.be/dQw4w9WgXcQ"));
+        assert!(is_valid_youtube_url("https://www.youtube.com/shorts/dQw4w9WgXcQ"));
+        assert!(is_valid_youtube_url("https://m.youtube.com/watch?v=dQw4w9WgXcQ"));
+        
+        // Invalid URLs
+        assert!(!is_valid_youtube_url("https://vimeo.com/123456"));
+        assert!(!is_valid_youtube_url("https://www.google.com"));
+        assert!(!is_valid_youtube_url("not a url"));
+        assert!(!is_valid_youtube_url(""));
+        assert!(!is_valid_youtube_url("https://youtube.com/playlist?list=123"));
+        assert!(!is_valid_youtube_url("https://youtube.com"));
+    }
+
+    #[tokio::test]
+    async fn test_start_conversion_creates_job() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        
+        let result = start_conversion(url).await;
+        assert!(result.is_ok());
+        
+        let job_id = result.expect("Expected job ID");
+        assert!(!job_id.is_empty());
+        
+        // Verify job was created in store
+        let status = get_job_status(&job_id).await.expect("Expected job status");
+        assert_eq!(status.id, job_id);
+        assert_eq!(status.status, "processing");
+    }
+
+    #[tokio::test]
+    async fn test_get_job_status_not_found() {
+        let result = get_job_status("non-existent-job-id").await;
+        assert!(result.is_ok());
+        
+        let status = result.expect("Expected status response");
+        assert_eq!(status.status, "not_found");
+        assert_eq!(status.message, "Job not found");
+    }
+
+    #[tokio::test]
+    async fn test_get_job_status_processing() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        let job_id = start_conversion(url).await.expect("Expected job ID");
+        
+        let status = get_job_status(&job_id).await.expect("Expected job status");
+        assert_eq!(status.id, job_id);
+        assert_eq!(status.status, "processing");
+        assert_eq!(status.message, "Processing your video...");
+    }
+
+    #[tokio::test]
+    async fn test_get_mp3_file_job_not_found() {
+        let result = get_mp3_file("non-existent-job-id").await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Job not found");
+    }
+
+    #[tokio::test]
+    async fn test_get_mp3_file_not_completed() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        let job_id = start_conversion(url).await.expect("Expected job ID");
+        
+        let result = get_mp3_file(&job_id).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Conversion not completed yet");
+    }
+
+    #[tokio::test]
+    async fn test_get_mp3_file_completed_but_no_file() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        let job_id = start_conversion(url).await.expect("Expected job ID");
+        
+        // Manually mark job as completed but without MP3 path
+        {
+            let mut jobs = get_job_store().write().await;
+            if let Some(job) = jobs.get_mut(&job_id) {
+                job.status = "completed".to_string();
+                // mp3_path remains None
+            }
+        }
+        
+        let result = get_mp3_file(&job_id).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "MP3 file not found");
+    }
+
+    #[tokio::test]
+    async fn test_get_mp3_file_completed_with_file() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        let job_id = start_conversion(url).await.expect("Expected job ID");
+        
+        // Create a temporary MP3 file
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let test_content = b"fake mp3 content";
+        std::fs::write(temp_file.path(), test_content).expect("Failed to write test content");
+        
+        // Manually mark job as completed with MP3 path
+        {
+            let mut jobs = get_job_store().write().await;
+            if let Some(job) = jobs.get_mut(&job_id) {
+                job.status = "completed".to_string();
+                job.mp3_path = Some(temp_file.path().to_path_buf());
+            }
+        }
+        
+        let result = get_mp3_file(&job_id).await;
+        assert!(result.is_ok());
+        
+        let content = result.expect("Expected file content");
+        assert_eq!(content, test_content);
+    }
+
+    #[tokio::test]
+    async fn test_job_error_handling() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        let job_id = start_conversion(url).await.expect("Expected job ID");
+        
+        let error_message = "Test error message";
+        
+        // Manually set job to error state
+        {
+            let mut jobs = get_job_store().write().await;
+            if let Some(job) = jobs.get_mut(&job_id) {
+                job.status = "error".to_string();
+                job.error = Some(error_message.to_string());
+            }
+        }
+        
+        let status = get_job_status(&job_id).await.expect("Expected job status");
+        assert_eq!(status.status, "error");
+        assert_eq!(status.message, error_message);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_job_creation() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        
+        // Create multiple jobs concurrently
+        let tasks: Vec<_> = (0..5)
+            .map(|_| {
+                let url = url.clone();
+                tokio::spawn(async move { start_conversion(url).await })
+            })
+            .collect();
+        
+        let results = futures::future::join_all(tasks).await;
+        
+        // All jobs should be created successfully
+        let mut job_ids = Vec::new();
+        for result in results {
+            let job_id = result.expect("Task should complete").expect("Job should be created");
+            job_ids.push(job_id);
+        }
+        
+        // All job IDs should be unique
+        job_ids.sort();
+        job_ids.dedup();
+        assert_eq!(job_ids.len(), 5, "All job IDs should be unique");
+        
+        // All jobs should be retrievable
+        for job_id in job_ids {
+            let status = get_job_status(&job_id).await.expect("Should get status");
+            assert_eq!(status.status, "processing");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_start_conversion_with_timeout() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string();
+        
+        // Test that start_conversion completes within reasonable time
+        let result = timeout(Duration::from_secs(5), start_conversion(url)).await;
+        assert!(result.is_ok(), "start_conversion should complete within timeout");
+        
+        let job_id = result.expect("Timeout").expect("Job creation");
+        assert!(!job_id.is_empty());
     }
 }
