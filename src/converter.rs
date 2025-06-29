@@ -1,12 +1,13 @@
 #[cfg(feature = "ssr")]
 pub mod server {
-    use crate::app::ConvertResponse;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::process::Stdio;
     use tempfile::TempDir;
     use tokio::process::Command;
     use uuid::Uuid;
+
+    use crate::server::video_conversion::convert_video::ConvertResponse;
 
     #[derive(Debug)]
     pub struct ConversionJob {
@@ -21,20 +22,21 @@ pub mod server {
     // For now, we'll use a simple in-memory store
     type JobStore = std::sync::Arc<tokio::sync::RwLock<HashMap<String, ConversionJob>>>;
 
-    static JOB_STORE: std::sync::LazyLock<JobStore> = std::sync::LazyLock::new(|| {
-        std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new()))
-    });
+    static JOB_STORE: std::sync::LazyLock<JobStore> =
+        std::sync::LazyLock::new(|| std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new())));
 
     /// Starts a new conversion job for a YouTube URL.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - Unable to create temporary directory
     /// - Failed to store job in the job store
-    pub async fn start_conversion(url: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn start_conversion(
+        url: String,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let job_id = Uuid::new_v4().to_string();
-        
+
         // Create temporary directory for this job
         let temp_dir = tempfile::tempdir()?;
 
@@ -52,7 +54,7 @@ pub mod server {
         // Start the conversion process in the background
         let job_id_clone = job_id.clone();
         let url_clone = url.clone();
-        
+
         tokio::spawn(async move {
             process_conversion(job_id_clone, url_clone).await;
         });
@@ -61,14 +63,16 @@ pub mod server {
     }
 
     /// Gets the current status of a conversion job.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// This function doesn't typically return errors, but wraps responses in Result
     /// for consistency with the API interface.
-    pub async fn get_job_status(job_id: &str) -> Result<ConvertResponse, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_job_status(
+        job_id: &str,
+    ) -> Result<ConvertResponse, Box<dyn std::error::Error + Send + Sync>> {
         let jobs = JOB_STORE.read().await;
-        
+
         match jobs.get(job_id) {
             Some(job) => {
                 let message = if let Some(ref error) = job.error {
@@ -94,17 +98,19 @@ pub mod server {
     }
 
     /// Retrieves the MP3 file contents for a completed conversion job.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - Job not found
     /// - Conversion not completed yet
     /// - MP3 file not found or unable to read file
     /// - File system I/O errors
-    pub async fn get_mp3_file(job_id: &str) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_mp3_file(
+        job_id: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let jobs = JOB_STORE.read().await;
-        
+
         match jobs.get(job_id) {
             Some(job) if job.status == "completed" => {
                 if let Some(ref mp3_path) = job.mp3_path {
@@ -132,7 +138,7 @@ pub mod server {
 
         // Use yt-dlp to directly extract audio as MP3
         let output_template = temp_dir_path.join("%(title)s.%(ext)s");
-        
+
         let download_result = Command::new("yt-dlp")
             .arg(&url)
             .arg("-x") // Extract audio
@@ -216,26 +222,38 @@ pub mod server {
                     let mut jobs = JOB_STORE.write().await;
                     if let Some(job) = jobs.get_mut(&job_id) {
                         job.status = "error".to_string();
-                        
+
                         // Provide more user-friendly error messages
-                        let user_friendly_error = if error_msg.contains("Sign in to confirm you're not a bot") {
+                        let user_friendly_error = if error_msg
+                            .contains("Sign in to confirm you're not a bot")
+                        {
                             "YouTube has detected automated access and is requesting verification. This is a temporary restriction. Please try again in a few minutes, or try a different video. Some videos may be more restricted than others.".to_string()
-                        } else if error_msg.contains("Video unavailable") || error_msg.contains("Private video") {
+                        } else if error_msg.contains("Video unavailable")
+                            || error_msg.contains("Private video")
+                        {
                             "This video is unavailable. It may be private, deleted, or restricted in your region.".to_string()
-                        } else if error_msg.contains("age-restricted") || error_msg.contains("age_restricted") {
+                        } else if error_msg.contains("age-restricted")
+                            || error_msg.contains("age_restricted")
+                        {
                             "This video is age-restricted and cannot be downloaded without authentication.".to_string()
-                        } else if error_msg.contains("rate limit") || error_msg.contains("too many requests") {
+                        } else if error_msg.contains("rate limit")
+                            || error_msg.contains("too many requests")
+                        {
                             "YouTube is rate limiting requests. Please wait a few minutes before trying again.".to_string()
                         } else if error_msg.contains("HTTP Error 429") {
-                            "Too many requests. Please wait a few minutes before trying again.".to_string()
+                            "Too many requests. Please wait a few minutes before trying again."
+                                .to_string()
                         } else if error_msg.contains("premieres in") {
                             "This video is a premiere that hasn't started yet. Please wait until it's available.".to_string()
                         } else if error_msg.contains("live stream") {
                             "Live streams cannot be downloaded. Please wait until the stream ends or try a regular video.".to_string()
                         } else {
-                            format!("Failed to download video: {}", error_msg.lines().take(2).collect::<Vec<_>>().join(" "))
+                            format!(
+                                "Failed to download video: {}",
+                                error_msg.lines().take(2).collect::<Vec<_>>().join(" ")
+                            )
                         };
-                        
+
                         job.error = Some(user_friendly_error);
                     }
                 }
@@ -251,10 +269,10 @@ pub mod server {
     }
 
     pub fn is_valid_youtube_url(url: &str) -> bool {
-        url.contains("youtube.com/watch") || 
-        url.contains("youtu.be/") || 
-        url.contains("youtube.com/shorts/") ||
-        url.contains("m.youtube.com/watch")
+        url.contains("youtube.com/watch")
+            || url.contains("youtu.be/")
+            || url.contains("youtube.com/shorts/")
+            || url.contains("m.youtube.com/watch")
     }
 
     #[cfg(test)]
@@ -268,14 +286,26 @@ pub mod server {
 
         #[tokio::test]
         async fn test_is_valid_youtube_url() {
-            assert!(is_valid_youtube_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+            assert!(is_valid_youtube_url(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            ));
             assert!(is_valid_youtube_url("https://youtu.be/dQw4w9WgXcQ"));
-            assert!(is_valid_youtube_url("https://m.youtube.com/watch?v=dQw4w9WgXcQ"));
-            assert!(is_valid_youtube_url("https://www.youtube.com/shorts/abcdef123"));
-            assert!(is_valid_youtube_url("https://www.youtube.com/watch?v=some_id&list=PL..."));
+            assert!(is_valid_youtube_url(
+                "https://m.youtube.com/watch?v=dQw4w9WgXcQ"
+            ));
+            assert!(is_valid_youtube_url(
+                "https://www.youtube.com/shorts/abcdef123"
+            ));
+            assert!(is_valid_youtube_url(
+                "https://www.youtube.com/watch?v=some_id&list=PL..."
+            ));
             assert!(!is_valid_youtube_url("https://www.google.com"));
-            assert!(!is_valid_youtube_url("https://www.youtube.com/feed/subscriptions"));
-            assert!(!is_valid_youtube_url("https://example.com/watch?v=dQw4w9WgXcQ"));
+            assert!(!is_valid_youtube_url(
+                "https://www.youtube.com/feed/subscriptions"
+            ));
+            assert!(!is_valid_youtube_url(
+                "https://example.com/watch?v=dQw4w9WgXcQ"
+            ));
         }
 
         #[tokio::test]
@@ -293,7 +323,7 @@ pub mod server {
             assert_eq!(job.status, "processing");
             assert!(job.error.is_none());
             assert!(job.mp3_path.is_none());
-            
+
             // The background task will run and likely fail because yt-dlp isn't real for the test.
             // We can't easily check the final state without more complex test setup (e.g. mocking Command).
         }
@@ -337,7 +367,10 @@ pub mod server {
 
             let result = get_mp3_file(&job_id).await;
             assert!(result.is_err());
-            assert_eq!(result.err().unwrap().to_string(), "Conversion not completed yet");
+            assert_eq!(
+                result.err().unwrap().to_string(),
+                "Conversion not completed yet"
+            );
         }
 
         #[tokio::test]
@@ -384,7 +417,7 @@ pub mod server {
             let result = get_mp3_file(&job_id).await.unwrap();
             assert_eq!(result, file_contents);
         }
-        
+
         #[tokio::test]
         async fn test_get_job_status_error() {
             reset_job_store().await;
