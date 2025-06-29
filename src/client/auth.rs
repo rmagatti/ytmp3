@@ -64,5 +64,13 @@ pub async fn sign_up_with_email(email: String, password: String) -> Result<JsVal
 /// or other authentication service problems.
 pub async fn sign_out() -> Result<JsValue, JsValue> {
     let client = create_supabase_client();
-    client.auth().sign_out().await
+    let result = client.auth().sign_out().await;
+    
+    // Clear local storage on successful sign out
+    if result.is_ok() {
+        let (_, _, clear) = use_auth_session();
+        clear();
+    }
+    
+    result
 }
