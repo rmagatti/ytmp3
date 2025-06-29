@@ -143,16 +143,42 @@ pub mod server {
             .arg("-o")
             .arg(&output_template)
             .arg("--restrict-filenames") // Use safe filenames
+            // Enhanced anti-bot measures
             .arg("--user-agent")
-            .arg("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            .arg("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .arg("--referer")
+            .arg("https://www.youtube.com/")
             .arg("--sleep-interval")
-            .arg("1")
+            .arg("2")
             .arg("--max-sleep-interval")
-            .arg("5")
+            .arg("8")
+            .arg("--sleep-subtitles")
+            .arg("2")
             .arg("--extractor-args")
-            .arg("youtube:player_client=android,web")
+            .arg("youtube:player_client=android,ios,web;include_live_dash=false")
             .arg("--no-check-certificates")
             .arg("--prefer-free-formats")
+            // Additional anti-detection headers
+            .arg("--add-headers")
+            .arg("Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+            .arg("--add-headers") 
+            .arg("Accept-Language:en-US,en;q=0.5")
+            .arg("--add-headers")
+            .arg("Accept-Encoding:gzip, deflate, br")
+            .arg("--add-headers")
+            .arg("DNT:1")
+            .arg("--add-headers")
+            .arg("Connection:keep-alive")
+            .arg("--add-headers")
+            .arg("Upgrade-Insecure-Requests:1")
+            // Retry mechanism
+            .arg("--retries")
+            .arg("3")
+            .arg("--retry-sleep")
+            .arg("5")
+            // Use different extraction methods as fallback
+            .arg("--compat-options")
+            .arg("prefer-legacy-http-handler")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -193,13 +219,21 @@ pub mod server {
                         
                         // Provide more user-friendly error messages
                         let user_friendly_error = if error_msg.contains("Sign in to confirm you're not a bot") {
-                            "YouTube has detected automated access. This video may be restricted or require verification. Please try a different video or try again later.".to_string()
-                        } else if error_msg.contains("Video unavailable") {
+                            "YouTube has detected automated access and is requesting verification. This is a temporary restriction. Please try again in a few minutes, or try a different video. Some videos may be more restricted than others.".to_string()
+                        } else if error_msg.contains("Video unavailable") || error_msg.contains("Private video") {
                             "This video is unavailable. It may be private, deleted, or restricted in your region.".to_string()
-                        } else if error_msg.contains("age-restricted") {
+                        } else if error_msg.contains("age-restricted") || error_msg.contains("age_restricted") {
                             "This video is age-restricted and cannot be downloaded without authentication.".to_string()
+                        } else if error_msg.contains("rate limit") || error_msg.contains("too many requests") {
+                            "YouTube is rate limiting requests. Please wait a few minutes before trying again.".to_string()
+                        } else if error_msg.contains("HTTP Error 429") {
+                            "Too many requests. Please wait a few minutes before trying again.".to_string()
+                        } else if error_msg.contains("premieres in") {
+                            "This video is a premiere that hasn't started yet. Please wait until it's available.".to_string()
+                        } else if error_msg.contains("live stream") {
+                            "Live streams cannot be downloaded. Please wait until the stream ends or try a regular video.".to_string()
                         } else {
-                            format!("Failed to download video: {}", error_msg.lines().next().unwrap_or("Unknown error"))
+                            format!("Failed to download video: {}", error_msg.lines().take(2).collect::<Vec<_>>().join(" "))
                         };
                         
                         job.error = Some(user_friendly_error);

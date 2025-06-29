@@ -195,30 +195,31 @@ fn HomePage() -> impl IntoView {
     };
 
     view! {
-        <div class="hero min-h-screen bg-gradient-to-br from-primary to-secondary">
-            <div class="hero-content text-center">
-                <div class="max-w-2xl">
-                    <h1 class="text-5xl font-bold mb-6">"YouTube to MP3 Converter"</h1>
-                    <p class="py-6 text-lg opacity-80">"Convert YouTube videos to MP3 files quickly and easily"</p>
-                    
-                    <div class="card bg-base-100 shadow-xl p-8">
-                        <div class="form-control gap-4">
-                            <div class="join w-full">
+        <div class="min-h-screen bg-gradient-to-br from-teal-400 via-blue-500 to-purple-600 flex items-center justify-center p-4">
+            <div class="w-full max-w-4xl">
+                <div class="card bg-gray-800 shadow-2xl rounded-3xl overflow-hidden">
+                    <div class="card-body p-12 text-center">
+                        <h1 class="text-5xl font-bold text-white mb-4">"YouTube to MP3 Converter"</h1>
+                        <p class="text-gray-300 text-lg mb-12">"Convert YouTube videos to MP3 files quickly and easily"</p>
+                        
+                        <div class="space-y-6">
+                            <div class="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
                                 <input
                                     type="url"
-                                    placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                                    placeholder="Paste YouTube URL..."
                                     prop:value=move || url_input.get()
                                     on:input=move |ev| {
                                         url_input.set(event_target_value(&ev));
                                         error_message.set(None);
                                     }
-                                    class="input input-bordered join-item flex-1"
-                                    class:input-disabled=move || is_converting.get()
+                                    class="input bg-white border-0 rounded-full px-6 py-4 text-gray-800 placeholder-gray-500 flex-1 text-center focus:outline-none focus:ring-4 focus:ring-lime-400/50"
+                                    class:opacity-50=move || is_converting.get()
+                                    disabled=move || is_converting.get()
                                 />
                                 <button
                                     on:click=on_convert
                                     disabled=move || is_converting.get() || url_input.get().is_empty()
-                                    class="btn btn-primary join-item"
+                                    class="btn bg-lime-400 hover:bg-lime-500 text-gray-900 border-0 rounded-full px-8 py-4 font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {move || {
                                         if is_converting.get() { 
@@ -228,7 +229,7 @@ fn HomePage() -> impl IntoView {
                                             }.into_any()
                                         } else { 
                                             view! { 
-                                                "Convert to MP3"
+                                                "Convert Now"
                                             }.into_any()
                                         }
                                     }}
@@ -236,8 +237,8 @@ fn HomePage() -> impl IntoView {
                             </div>
                             
                             {move || error_message.get().map(|msg| view! {
-                                <div class="alert alert-error">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                <div class="alert bg-red-500/20 border border-red-500/30 text-red-200 rounded-2xl">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                     <span>{msg}</span>
@@ -247,8 +248,10 @@ fn HomePage() -> impl IntoView {
                             {move || if is_converting.get() {
                                 Some(view! {
                                     <div class="text-center space-y-4">
-                                        <progress class="progress progress-primary w-full"></progress>
-                                        <p class="text-base-content/70">"Processing your video..."</p>
+                                        <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                                            <div class="bg-gradient-to-r from-lime-400 to-yellow-400 h-full rounded-full animate-pulse"></div>
+                                        </div>
+                                        <p class="text-gray-300">"Processing your video..."</p>
                                     </div>
                                 })
                             } else {
@@ -256,16 +259,16 @@ fn HomePage() -> impl IntoView {
                             }}
                             
                             {move || download_url.get().map(|url| view! {
-                                <div class="alert alert-success">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <div class="flex-1">
-                                        <div class="text-lg font-semibold">"Conversion complete!"</div>
-                                        <div class="mt-4">
-                                            <a href=url download class="btn btn-success">"Download MP3"</a>
+                                <div class="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-8 shadow-lg">
+                                    <div class="flex justify-center mb-4">
+                                        <div class="bg-white/20 rounded-full p-3">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
                                         </div>
                                     </div>
+                                    <h3 class="text-2xl font-bold text-white mb-6">"Conversion Complete!"</h3>
+                                    <a href=url download class="btn bg-white text-green-600 hover:bg-gray-100 border-0 rounded-full px-8 py-3 font-bold shadow-lg transition-all duration-200">"Download MP3"</a>
                                 </div>
                             })}
                         </div>
