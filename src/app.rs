@@ -1,11 +1,10 @@
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
-    components::{Route, Router, Routes},
-    StaticSegment,
+    components::{Route, Router, Routes}, path
 };
 
-use crate::client::home_page::HomePage;
+use crate::client::{home_page::HomePage, login_page::LoginPage};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -17,6 +16,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <AutoReload options=options.clone() />
                 <HydrationScripts options />
                 <MetaTags />
+                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
             </head>
             <body>
                 <App />
@@ -42,7 +42,8 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Routes fallback=|| "Page not found.".into_view()>
-                    <Route path=StaticSegment("") view=HomePage />
+                    <Route path=path!("") view=HomePage />
+                    <Route path=path!("/login") view=LoginPage />
                 </Routes>
             </main>
         </Router>
