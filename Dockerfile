@@ -1,32 +1,40 @@
-FROM --platform=linux/amd64 rustlang/rust:nightly-bookworm as builder
+# Multi-stage Dockerfile using cargo-chef for optimized dependency caching
+# This approach significantly speeds up Docker builds by caching Rust dependencies
+# separately from application code changes.
+
+FROM --platform=linux/amd64 rustlang/rust:nightly-bookworm as chef
 
 RUN apt update && apt install -y bash curl npm libc-dev binaryen \
     protobuf-compiler libssl-dev libprotobuf-dev gcc git g++ libc-dev \
     make binaryen perl
 
 RUN rustup target add wasm32-unknown-unknown
-RUN cargo install cargo-generate
+RUN cargo install cargo-chef
 RUN cargo install --locked cargo-leptos --version 0.2.35
 RUN npm install -g sass
 
 WORKDIR /work
 
-# Copy dependency files first for better caching
-COPY Cargo.toml ./
-COPY rust-toolchain.toml ./
+# Prepare the recipe
+FROM chef as planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Create a dummy src/main.rs and src/lib.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs
+# Build dependencies using cargo-chef
+FROM chef as builder
+COPY --from=planner /work/recipe.json recipe.json
 
-# Build dependencies first (this layer will be cached unless Cargo.toml changes)
+# Build dependencies - this layer will be cached unless dependencies change
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/work/target \
-    cargo build --release && rm -rf src
+    cargo chef cook --release --recipe-path recipe.json
 
-# Now copy the actual source code
+# Copy package files and install npm dependencies for Tailwind/DaisyUI
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# Copy source code and build the application
 COPY . .
-
-# Build the actual application
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/work/target \
     cargo leptos build --release && \
