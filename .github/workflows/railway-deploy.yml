@@ -62,8 +62,7 @@ jobs:
     - name: Deploy to Railway
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
-        npm install -g @railway/cli
-        railway deploy
+        bash <(curl -fsSL cli.new)
+        railway up --ci --service ${{ vars.RAILWAY_SERVICE_ID }}
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE_ID }}
