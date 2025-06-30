@@ -31,7 +31,7 @@ pub fn LogoutPage() -> impl IntoView {
                     }
                     Err(e) => {
                         logging::error!("Failed to sign out: {:?}", e);
-                       _set_error_message 
+                        _set_error_message
                             .set(Some("Failed to sign out. Please try again.".to_string()));
                         set_is_loading.set(false);
                     }
@@ -92,4 +92,3 @@ pub fn LogoutPage() -> impl IntoView {
         </div>
     }
 }
-

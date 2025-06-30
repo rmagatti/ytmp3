@@ -9,8 +9,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use ytmp3::app::*;
 
-    let conf = get_configuration(None)
-        .map_err(|e| format!("Failed to load Leptos configuration: {e}"))?;
+    let conf =
+        get_configuration(None).map_err(|e| format!("Failed to load Leptos configuration: {e}"))?;
     let addr = conf.leptos_options.site_addr;
     let leptos_options = conf.leptos_options;
     // Generate the list of routes in your Leptos App
@@ -55,12 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
     log!("listening on http://{addr}");
-    let listener = tokio::net::TcpListener::bind(&addr).await
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
         .map_err(|e| format!("Failed to bind to address {addr}: {e}"))?;
     axum::serve(listener, app.into_make_service())
         .await
         .map_err(|e| format!("Server error: {e}"))?;
-    
+
     Ok(())
 }
 

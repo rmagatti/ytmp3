@@ -10,7 +10,7 @@ pub fn LoginPage() -> impl IntoView {
     let (email, set_email) = signal(String::new());
     let (password, set_password) = signal(String::new());
     let (error_message, set_error_message) = signal(None::<String>);
-let (success_message, set_success_message) = signal(None::<String>);
+    let (success_message, set_success_message) = signal(None::<String>);
     let (is_loading, set_is_loading) = signal(false);
 
     #[cfg(feature = "hydrate")]
@@ -33,7 +33,7 @@ let (success_message, set_success_message) = signal(None::<String>);
         spawn_local(async move {
             set_is_loading.set(true);
             set_error_message.set(None);
-set_success_message.set(None);
+            set_success_message.set(None);
 
             #[cfg(feature = "hydrate")]
             {
@@ -46,7 +46,9 @@ set_success_message.set(None);
                             logging::log!("Login successful, session found");
                             navigate("/", Default::default());
                         } else {
-                            logging::log!("Login successful, but no session. User needs to confirm email.");
+                            logging::log!(
+                                "Login successful, but no session. User needs to confirm email."
+                            );
                             set_success_message.set(Some(
                                 "Please check your email to confirm your account. You can view test emails at http://localhost:54324"
                                     .to_string(),

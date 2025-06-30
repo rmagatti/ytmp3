@@ -4,10 +4,10 @@
 #[test]
 fn ui_tests() {
     let t = trybuild::TestCases::new();
-    
+
     // Test that valid macro usage compiles
     t.pass("tests/ui/pass/*.rs");
-    
-    // Test that invalid macro usage fails to compile with proper error messages  
+
+    // Test that invalid macro usage fails to compile with proper error messages
     t.compile_fail("tests/ui/fail/*.rs");
 }
