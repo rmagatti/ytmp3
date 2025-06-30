@@ -11,7 +11,6 @@ use wasm_bindgen::JsValue;
 
 use crate::domain::entities::auth::{Auth, AuthSession};
 
-
 pub fn use_auth_session() -> (
     Signal<AuthSession>,
     WriteSignal<AuthSession>,
@@ -26,10 +25,7 @@ pub fn create_supabase_client() -> supabase_js_rs::SupabaseClient {
     let supabase_url = ctenv!("SUPABASE_URL");
     let supabase_anon_key = ctenv!("SUPABASE_ANON_KEY");
 
-    create_client(
-        supabase_url,
-        supabase_anon_key,
-    )
+    create_client(&supabase_url, &supabase_anon_key)
 }
 
 /// Signs in a user with email and password.
@@ -129,4 +125,3 @@ impl TryFrom<JsValue> for Auth {
         serde_wasm_bindgen::from_value(value).map_err(|e| e.into())
     }
 }
-
