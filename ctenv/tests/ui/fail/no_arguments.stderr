@@ -1,0 +1,7 @@
+error: unexpected end of input, expected string literal
+ --> tests/ui/fail/no_arguments.rs:7:16
+  |
+7 |     let _var = ctenv!();
+  |                ^^^^^^^^
+  |
+  = note: this error originates in the macro `ctenv` (in Nightly builds, run with -Z macro-backtrace for more info)

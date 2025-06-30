@@ -3,6 +3,7 @@
 use leptos::{prelude::*, server::codee::string::JsonSerdeCodec};
 use leptos_use::storage::use_local_storage;
 
+use ctenv::ctenv;
 use supabase_js_rs::{create_client, Credentials};
 
 use serde_wasm_bindgen;
@@ -22,9 +23,12 @@ pub fn use_auth_session() -> (
 }
 
 pub fn create_supabase_client() -> supabase_js_rs::SupabaseClient {
+    let supabase_url = ctenv!("SUPABASE_URL");
+    let supabase_anon_key = ctenv!("SUPABASE_ANON_KEY");
+
     create_client(
-        dotenvy_macro::dotenv!("SUPABASE_URL"),
-        dotenvy_macro::dotenv!("SUPABASE_ANON_KEY"),
+        supabase_url,
+        supabase_anon_key,
     )
 }
 

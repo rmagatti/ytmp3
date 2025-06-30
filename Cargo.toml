@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "ctenv"]
+
 [package]
 name = "ytmp3"
 version = "0.1.0"
@@ -48,7 +51,9 @@ supabase-js-rs = { version = "0.1.3", optional = true }
 leptos-use = "0.16.2"
 dotenvy_macro = "0.15.7"
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
+
 eyre = { version = "0.6.12" }
+ctenv = { path = "ctenv" }
 
 [features]
 hydrate = [

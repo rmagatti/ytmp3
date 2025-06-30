@@ -20,3 +20,7 @@ primary_region = 'sea'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[env]
+SUPABASE_URL="https://qxwrqmpcoqfpcytunyim.supabase.co"
+SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4d3JxbXBjb3FmcGN5dHVueWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExNjg4MjIsImV4cCI6MjA2Njc0NDgyMn0.tCVbSwEdFcRVi4ow82R4pGComSXE3UfhPr5LjMsc1Cw"
