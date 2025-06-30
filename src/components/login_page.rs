@@ -3,7 +3,7 @@ use leptos::{ev::SubmitEvent, prelude::*, task::spawn_local};
 use leptos_router::hooks::use_navigate;
 
 #[cfg(feature = "hydrate")]
-use crate::client::auth::{sign_in_with_email, sign_up_with_email};
+use crate::components::auth::{sign_in_with_email, sign_up_with_email};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -14,7 +14,6 @@ pub fn LoginPage() -> impl IntoView {
 
     #[cfg(feature = "hydrate")]
     let navigate = use_navigate();
-
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
 
@@ -39,25 +38,42 @@ pub fn LoginPage() -> impl IntoView {
                 // Use spawn_local for WASM compatibility
                 use leptos::logging;
 
-                // First, try to sign up (create new user)
-                match sign_up_with_email(email_val.clone(), password_val.clone()).await {
-                    Ok(response) => {
-                        logging::log!("Signup successful: {:?}", response);
-                        navigate("/", Default::default());
+                match sign_in_with_email(email_val.clone(), password_val.clone()).await {
+                    Ok(auth) => {
+                        if auth.data.session.is_some() {
+                            logging::log!("Login successful, session found");
+                            navigate("/", Default::default());
+                        } else {
+                            logging::log!("Login successful, but no session. User needs to confirm email.");
+                            set_error_message.set(Some(
+                                "Please check your email to confirm your account. You can view test emails at http://localhost:54324"
+                                    .to_string(),
+                            ));
+                        }
                     }
-                    Err(signup_error) => {
-                        logging::log!("Signup failed, attempting to login: {:?}", signup_error);
+                    Err(login_error) => {
+                        logging::log!("Login failed, attempting to sign up: {:?}", login_error);
 
-                        // If signup failed (user probably exists), try to login
-                        match sign_in_with_email(email_val, password_val).await {
-                            Ok(_) => {
-                                logging::log!("Login successful after failed signup");
-                                navigate("/", Default::default());
+                        // If login failed (user might not exist), try to sign up
+                        match sign_up_with_email(email_val, password_val).await {
+                            Ok(auth) => {
+                                logging::log!("Signup response: {:?}", auth);
+
+                                if auth.data.session.is_some() {
+                                    logging::log!("Signup successful, session found");
+                                    navigate("/", Default::default());
+                                } else {
+                                    logging::log!("Signup successful, but no session. User needs to confirm email.");
+                                    set_error_message.set(Some(
+                                        "Account created! Please check your email to confirm your account. You can view test emails at http://localhost:54324"
+                                            .to_string(),
+                                    ));
+                                }
                             }
-                            Err(login_error) => {
-                                logging::error!("Both signup and login failed: {:?}", login_error);
+                            Err(signup_error) => {
+                                logging::error!("Both login and signup failed: {:?}", signup_error);
                                 set_error_message.set(Some(
-                                    "Invalid credentials. Please check your email and password."
+                                    "Unable to sign in or create account. Please check your credentials."
                                         .to_string(),
                                 ));
                             }
