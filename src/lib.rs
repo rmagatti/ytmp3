@@ -1,10 +1,12 @@
+#![feature(let_chains)]
 #![recursion_limit = "256"]
 
 pub mod app;
 pub mod converter;
 
-pub mod client;
+pub mod components;
 pub mod server;
+pub mod domain;
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]

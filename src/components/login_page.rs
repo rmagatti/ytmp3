@@ -10,6 +10,7 @@ pub fn LoginPage() -> impl IntoView {
     let (email, set_email) = signal(String::new());
     let (password, set_password) = signal(String::new());
     let (error_message, set_error_message) = signal(None::<String>);
+let (success_message, set_success_message) = signal(None::<String>);
     let (is_loading, set_is_loading) = signal(false);
 
     #[cfg(feature = "hydrate")]
@@ -32,6 +33,7 @@ pub fn LoginPage() -> impl IntoView {
         spawn_local(async move {
             set_is_loading.set(true);
             set_error_message.set(None);
+set_success_message.set(None);
 
             #[cfg(feature = "hydrate")]
             {
@@ -45,7 +47,7 @@ pub fn LoginPage() -> impl IntoView {
                             navigate("/", Default::default());
                         } else {
                             logging::log!("Login successful, but no session. User needs to confirm email.");
-                            set_error_message.set(Some(
+                            set_success_message.set(Some(
                                 "Please check your email to confirm your account. You can view test emails at http://localhost:54324"
                                     .to_string(),
                             ));
@@ -64,8 +66,8 @@ pub fn LoginPage() -> impl IntoView {
                                     navigate("/", Default::default());
                                 } else {
                                     logging::log!("Signup successful, but no session. User needs to confirm email.");
-                                    set_error_message.set(Some(
-                                        "Account created! Please check your email to confirm your account. You can view test emails at http://localhost:54324"
+                                    set_success_message.set(Some(
+                                        "Account created! Please check your email to confirm your account."
                                             .to_string(),
                                     ));
                                 }
@@ -96,15 +98,36 @@ pub fn LoginPage() -> impl IntoView {
                             "Enter your credentials to continue"
                         </p>
 
-                        {move || error_message.get().map(|msg| view! {
-                            <div class="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">
-                                {msg}
-                            </div>
-                        })}
+                        {move || {
+                            error_message
+                                .get()
+                                .map(|msg| {
+                                    view! {
+                                        <div class="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">
+                                            {msg}
+                                        </div>
+                                    }
+                                })
+                        }}
+
+                        {move || {
+                            success_message
+                                .get()
+                                .map(|msg| {
+                                    view! {
+                                        <div class="bg-green-500/20 border border-green-500 text-green-200 px-4 py-3 rounded-lg mb-6">
+                                            {msg}
+                                        </div>
+                                    }
+                                })
+                        }}
 
                         <form class="space-y-6" on:submit=on_submit>
                             <div class="space-y-2">
-                                <label class="block text-left text-gray-300 font-medium" for="email">
+                                <label
+                                    class="block text-left text-gray-300 font-medium"
+                                    for="email"
+                                >
                                     "Email"
                                 </label>
                                 <input
@@ -121,7 +144,10 @@ pub fn LoginPage() -> impl IntoView {
                             </div>
 
                             <div class="space-y-2">
-                                <label class="block text-left text-gray-300 font-medium" for="password">
+                                <label
+                                    class="block text-left text-gray-300 font-medium"
+                                    for="password"
+                                >
                                     "Password"
                                 </label>
                                 <input
@@ -143,7 +169,13 @@ pub fn LoginPage() -> impl IntoView {
                                     class="w-full bg-lime-400 hover:bg-lime-500 text-gray-900 border-0 rounded-full px-8 py-4 font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled=move || is_loading.get()
                                 >
-                                    {move || if is_loading.get() { "Processing..." } else { "Login / Sign Up" }}
+                                    {move || {
+                                        if is_loading.get() {
+                                            "Processing..."
+                                        } else {
+                                            "Login / Sign Up"
+                                        }
+                                    }}
                                 </button>
                             </div>
                         </form>
@@ -157,7 +189,10 @@ pub fn LoginPage() -> impl IntoView {
                         <div class="space-y-3">
                             <p class="text-gray-300 text-sm">
                                 "Forgot your password? "
-                                <a href="/reset-password" class="text-purple-400 hover:text-purple-300 font-medium transition-colors">
+                                <a
+                                    href="/reset-password"
+                                    class="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+                                >
                                     "Reset it here"
                                 </a>
                             </p>

@@ -29,6 +29,13 @@ cargo leptos end-to-end --release
 ```
 Runs Playwright end-to-end tests located in `end2end/tests/`. Make sure to run `npm install` in the `end2end/` directory first.
 
+### Code Quality
+```bash
+cargo clippy
+cargo fmt
+```
+The project uses strict clippy lints that deny panic-prone patterns like `unwrap_used`, `expect_used`, and `panic`. Always use proper error handling.
+
 ### Prerequisites
 - Rust nightly toolchain (configured via rust-toolchain.toml)
 - `cargo install cargo-leptos --locked`
@@ -43,6 +50,9 @@ Runs Playwright end-to-end tests located in `end2end/tests/`. Make sure to run `
 - **src/app.rs**: Main application component with routing and UI logic
 - **src/main.rs**: Server entry point (Axum server setup)
 - **src/lib.rs**: Library entry point with hydration function for WASM
+- **src/components/**: UI components (home_page, login_page, logout_page, auth)
+- **src/server/**: Server-side functionality including video conversion logic
+- **src/converter.rs**: Core conversion utilities
 
 ### Build Features
 - **SSR feature**: Server-side rendering with Axum backend
@@ -51,9 +61,11 @@ Runs Playwright end-to-end tests located in `end2end/tests/`. Make sure to run `
 
 ### Key Configuration
 - Uses Leptos 0.8.0 with nightly features
-- SCSS styling compiled from `style/main.scss`
+- Tailwind CSS for styling (configured in `style/tailwind.css`)
 - Static assets served from `public/` directory
 - Development server on port 3000, reload port 3001
+- Authentication integration with Supabase
+- Strict clippy lints configured (denies unwrap, panic, expect, etc.)
 
 ### Deployment Structure
 Production deployment requires:

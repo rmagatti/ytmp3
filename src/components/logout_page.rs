@@ -4,7 +4,7 @@ use leptos::task::spawn_local;
 use leptos_router::hooks::use_navigate;
 
 #[cfg(feature = "hydrate")]
-use crate::client::auth::sign_out;
+use crate::components::auth::sign_out;
 
 /// Logout page component that automatically signs out the user and redirects
 #[component]

@@ -1,11 +1,11 @@
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
-    components::{Route, Router, Routes}, path
+    components::{Route, Router, Routes},
+    path,
 };
 
-use crate::client::{home_page::HomePage, login_page::LoginPage};
-use crate::client::logout_page::LogoutPage;
+use crate::components::{home_page::HomePage, login_page::LoginPage, logout_page::LogoutPage};
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
