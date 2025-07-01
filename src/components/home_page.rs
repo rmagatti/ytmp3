@@ -106,30 +106,15 @@ pub fn HomePage() -> impl IntoView {
                 <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
                     <div class="text-white">
                         {move || {
-                            if is_loading.get() {
-                                view! { <span class="text-sm text-gray-300">"Loading..."</span> }
-                                    .into_view()
-                            } else {
-                                let session = auth_session.get();
-                                if !session.email.is_empty() {
-                                    view! {
-                                        <span class="text-sm text-gray-300">
-                                            "Logged in as "
-                                            <span class="font-medium text-white">{session.email}</span>
-                                        </span>
-                                    }
-                                        .into_view()
-                                } else {
-                                    view! {
-                                        <span class="text-sm text-gray-300">
-                                            "Logged in as "
-                                            <span class="font-medium text-white"></span>
-                                        </span>
-                                    }
-                                        .into_view()
-                                }
+                            let session = auth_session.get();
+                            view! {
+                                <span class="text-sm text-gray-300">
+                                    "Logged in as "
+                                    <span class="font-medium text-white">{session.email}</span>
+                                </span>
                             }
-                        }} 
+                                .into_view()
+                        }}
                     </div>
                     <button
                         on:click=on_logout
