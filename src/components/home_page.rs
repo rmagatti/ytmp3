@@ -113,7 +113,6 @@ pub fn HomePage() -> impl IntoView {
                                     <span class="font-medium text-white">{session.email}</span>
                                 </span>
                             }
-                                .into_view()
                         }}
                     </div>
                     <button
