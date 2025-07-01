@@ -122,7 +122,7 @@ pub fn HomePage() -> impl IntoView {
                                 } else {
                                     view! {
                                         <span class="text-sm text-gray-300">
-                                            "Logged in"
+                                            "Logged in as "
                                             <span class="font-medium text-white"></span>
                                         </span>
                                     }
