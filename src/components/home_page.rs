@@ -121,12 +121,15 @@ pub fn HomePage() -> impl IntoView {
                                         .into_view()
                                 } else {
                                     view! {
-                                        <span class="text-sm text-gray-300">"Logged in"</span>
+                                        <span class="text-sm text-gray-300">
+                                            "Logged in"
+                                            <span class="font-medium text-white"></span>
+                                        </span>
                                     }
                                         .into_view()
                                 }
                             }
-                        }}
+                        }} 
                     </div>
                     <button
                         on:click=on_logout
