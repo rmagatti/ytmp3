@@ -1,9 +1,12 @@
-use leptos::{ev::SubmitEvent, prelude::*, task::spawn_local};
+#[allow(unused_imports)]
+use leptos::{ev::SubmitEvent, prelude::*, task::spawn_local, web_sys};
 #[cfg(feature = "hydrate")]
 use leptos_router::hooks::use_navigate;
 
 #[cfg(feature = "hydrate")]
-use crate::components::auth::{sign_in_with_email, sign_up_with_email, use_auth_session};
+use crate::components::auth::{
+    get_user, sign_in_with_email, sign_up_with_email, use_auth_session,
+};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -14,7 +17,67 @@ pub fn LoginPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
 
     #[cfg(feature = "hydrate")]
-    let (_, set_auth_session) = use_auth_session();
+    let (auth_session, set_auth_session) = use_auth_session();
+
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        if auth_session.get().is_some() {
+            let navigate = use_navigate();
+            navigate("/", Default::default());
+        }
+    });
+
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        use leptos::logging;
+        if let Some(window) = web_sys::window() {
+            if let Ok(location) = window.location().hash() {
+                if !location.is_empty() {
+                    if let Ok(params) = web_sys::UrlSearchParams::new_with_str(&location[1..]) {
+                        if let (Some(access_token), Some(refresh_token), Some(expires_at_str)) = (
+                            params.get("access_token"),
+                            params.get("refresh_token"),
+                            params.get("expires_at"),
+                        ) {
+                            if let Ok(expires_at) = expires_at_str.parse::<i64>() {
+                                let at = access_token.clone();
+                                spawn_local(async move {
+                                    match get_user(&at).await {
+                                        Ok(user) => {
+                                            let session =
+                                                crate::domain::entities::auth::AuthSession {
+                                                    user_id: user.id,
+                                                    access_token,
+                                                    refresh_token,
+                                                    email: user.email,
+                                                    role: user.role,
+                                                    expires_at,
+                                                    email_confirmed_at: user.email_confirmed_at,
+                                                    last_sign_in_at: user.last_sign_in_at,
+                                                    is_anonymous: user.is_anonymous,
+                                                };
+                                            set_auth_session.set(Some(session));
+                                            logging::log!(
+                                                "Session restored from URL, redirecting..."
+                                            );
+                                            let navigate = use_navigate();
+                                            navigate("/", Default::default());
+                                        }
+                                        Err(e) => {
+                                            logging::error!(
+                                                "Failed to get user from token: {:?}",
+                                                e
+                                            );
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
 
     #[cfg(feature = "hydrate")]
     let navigate = use_navigate();

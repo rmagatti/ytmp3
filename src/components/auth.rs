@@ -15,6 +15,22 @@ use wasm_bindgen::JsValue;
 use crate::domain::entities::auth::AuthSession;
 #[cfg(feature = "hydrate")]
 use crate::domain::entities::auth::Auth;
+#[cfg(feature = "hydrate")]
+use crate::domain::entities::auth::User;
+#[cfg(feature = "hydrate")]
+use serde::Deserialize;
+
+#[cfg(feature = "hydrate")]
+#[derive(Deserialize)]
+struct GetUserResponse {
+    data: UserData,
+}
+
+#[cfg(feature = "hydrate")]
+#[derive(Deserialize)]
+struct UserData {
+    user: User,
+}
 
 pub fn use_auth_session() -> (Signal<Option<AuthSession>>, WriteSignal<Option<AuthSession>>) {
     let (auth_session, set_auth_session) = use_cookie_with_options::<AuthSession, JsonSerdeCodec>(
@@ -129,6 +145,14 @@ pub async fn sign_out(
     set_auth_session.set(None);
 
     result
+}
+
+#[cfg(feature = "hydrate")]
+pub async fn get_user(token: &str) -> Result<User, JsValue> {
+    let client = create_supabase_client();
+    let result = client.auth().get_user(Some(token)).await?;
+    let response: GetUserResponse = serde_wasm_bindgen::from_value(result).map_err(JsValue::from)?;
+    Ok(response.data.user)
 }
 
 #[cfg(feature = "hydrate")]
