@@ -1,26 +1,30 @@
-#![cfg(feature = "hydrate")]
-
 use leptos::{prelude::*, server::codee::string::JsonSerdeCodec};
-use leptos_use::storage::use_local_storage;
+use leptos_use::use_cookie;
+use leptos::logging;
 
+#[cfg(feature = "hydrate")]
 use ctenv::ctenv;
+#[cfg(feature = "hydrate")]
 use supabase_js_rs::{create_client, Credentials};
 
+#[cfg(feature = "hydrate")]
 use serde_wasm_bindgen;
+#[cfg(feature = "hydrate")]
 use wasm_bindgen::JsValue;
 
-use crate::domain::entities::auth::{Auth, AuthSession};
+use crate::domain::entities::auth::AuthSession;
+#[cfg(feature = "hydrate")]
+use crate::domain::entities::auth::Auth;
 
-pub fn use_auth_session() -> (
-    Signal<AuthSession>,
-    WriteSignal<AuthSession>,
-    impl Fn() + Clone,
-) {
-    let (auth_session, set_auth_session, clear) =
-        use_local_storage::<AuthSession, JsonSerdeCodec>("supabase.auth.token");
-    (auth_session, set_auth_session, clear)
+pub fn use_auth_session() -> (Signal<Option<AuthSession>>, WriteSignal<Option<AuthSession>>) {
+    let (auth_session, set_auth_session) =
+        use_cookie::<AuthSession, JsonSerdeCodec>("supabase.auth.token");
+
+    logging::log!("use_auth_session called, current session: {:?}", auth_session);
+    (auth_session, set_auth_session)
 }
 
+#[cfg(feature = "hydrate")]
 pub fn create_supabase_client() -> supabase_js_rs::SupabaseClient {
     let supabase_url = ctenv!("SUPABASE_URL");
     let supabase_anon_key = ctenv!("SUPABASE_ANON_KEY");
@@ -34,9 +38,8 @@ pub fn create_supabase_client() -> supabase_js_rs::SupabaseClient {
 ///
 /// Returns an error if authentication fails due to invalid credentials,
 /// network issues, or other authentication-related problems.
+#[cfg(feature = "hydrate")]
 pub async fn sign_in_with_email(email: String, password: String) -> eyre::Result<Auth> {
-    use leptos::logging;
-
     let client = create_supabase_client();
     let result = client
         .auth()
@@ -48,10 +51,10 @@ pub async fn sign_in_with_email(email: String, password: String) -> eyre::Result
             let auth = Auth::try_from(response.clone())
                 .map_err(|e| eyre::eyre!("Failed to parse auth response: {:?}", e))?;
             logging::log!("Sign-in successful, response: {:?}", auth);
-            let (_, set_auth_session, _) = use_auth_session();
+            let (_, set_auth_session) = use_auth_session();
 
             if let Some(session) = Option::<AuthSession>::from(&auth) {
-                set_auth_session(session);
+                set_auth_session(Some(session));
                 logging::log!("Successfully extracted session, storing in local storage");
             } else {
                 logging::warn!("No session found in response. User may need to confirm email.");
@@ -71,9 +74,8 @@ pub async fn sign_in_with_email(email: String, password: String) -> eyre::Result
 ///
 /// Returns an error if user creation fails due to invalid input,
 /// existing user, network issues, or other registration-related problems.
+#[cfg(feature = "hydrate")]
 pub async fn sign_up_with_email(email: String, password: String) -> eyre::Result<Auth> {
-    use leptos::logging;
-
     let client = create_supabase_client();
     let result = client.auth().sign_up(Credentials { email, password }).await;
 
@@ -82,10 +84,10 @@ pub async fn sign_up_with_email(email: String, password: String) -> eyre::Result
             let auth = Auth::try_from(response.clone())
                 .map_err(|e| eyre::eyre!("Failed to parse auth response: {:?}", e))?;
             logging::log!("Sign-up successful, response: {:?}", auth);
-            let (_, set_auth_session, _) = use_auth_session();
+            let (_, set_auth_session) = use_auth_session();
 
             if let Some(session) = Option::<AuthSession>::from(&auth) {
-                set_auth_session(session);
+                set_auth_session(Some(session));
                 logging::log!("Successfully extracted session, storing in local storage");
             } else {
                 logging::warn!("No session found in response. User may need to confirm email.");
@@ -105,19 +107,20 @@ pub async fn sign_up_with_email(email: String, password: String) -> eyre::Result
 ///
 /// Returns an error if the sign-out operation fails due to network issues
 /// or other authentication service problems.
+#[cfg(feature = "hydrate")]
 pub async fn sign_out() -> Result<JsValue, JsValue> {
     let client = create_supabase_client();
     let result = client.auth().sign_out().await;
 
-    // Clear local storage on successful sign out
-    if result.is_ok() {
-        let (_, _, clear) = use_auth_session();
-        clear();
-    }
+    logging::log!("Sign-out result: {:?}", result);
+
+    let (_, set_auth_session) = use_auth_session();
+    set_auth_session(None);
 
     result
 }
 
+#[cfg(feature = "hydrate")]
 impl TryFrom<JsValue> for Auth {
     type Error = JsValue;
 

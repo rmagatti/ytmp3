@@ -77,7 +77,7 @@ pub struct AppMetadata {
 }
 
 // Simplified session struct for local storage
-#[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub struct AuthSession {
     pub user_id: String,
     pub access_token: String,
@@ -92,6 +92,25 @@ pub struct AuthSession {
 
 impl From<&Auth> for Option<AuthSession> {
     fn from(auth: &Auth) -> Self {
+        let session = auth.data.session.as_ref()?;
+        let user = &session.user;
+
+        Some(AuthSession {
+            user_id: user.id.clone(),
+            access_token: session.access_token.clone(),
+            refresh_token: session.refresh_token.clone(),
+            email: user.email.clone(),
+            role: user.role.clone(),
+            expires_at: session.expires_at,
+            email_confirmed_at: user.email_confirmed_at.clone(),
+            last_sign_in_at: user.last_sign_in_at.clone(),
+            is_anonymous: user.is_anonymous,
+        })
+    }
+}
+
+impl From<Auth> for Option<AuthSession> {
+    fn from(auth: Auth) -> Self {
         let session = auth.data.session.as_ref()?;
         let user = &session.user;
 

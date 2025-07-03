@@ -1,14 +1,17 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_router::components::Redirect;
 #[cfg(feature = "hydrate")]
 use leptos_router::hooks::use_navigate;
 
 #[cfg(feature = "hydrate")]
-use crate::components::auth::{sign_out, use_auth_session};
+use crate::components::auth::sign_out;
 
 use crate::server::video_conversion::{
     check_status::poll_conversion_status, convert_video::convert_video,
 };
+
+use crate::components::auth::use_auth_session;
 
 /// Renders the home page of your application.
 #[component]
@@ -19,30 +22,18 @@ pub fn HomePage() -> impl IntoView {
     let error_message = RwSignal::new(Option::<String>::None);
     let conversion_id = RwSignal::new(Option::<String>::None);
 
-    #[cfg(feature = "hydrate")]
-    let (auth_session, _, _) = use_auth_session();
-    let is_loading = RwSignal::new(true);
+    let (auth_session, _) = use_auth_session();
 
-    #[cfg(feature = "hydrate")]
-    Effect::new(move |_| {
-        let auth_session = auth_session.get();
-        if !auth_session.access_token.is_empty() {
-            is_loading.set(false);
-        }
-    });
-    #[cfg(not(feature = "hydrate"))]
-    let auth_session = RwSignal::new(crate::domain::entities::auth::AuthSession::default());
-
-    // Redirect to login if not authenticated
-    #[cfg(feature = "hydrate")]
-    Effect::new(move |_| {
-        let auth_session = auth_session.get();
-        if !is_loading.get() && auth_session.access_token.is_empty() {
-            leptos::logging::log!("Redirecting to login");
-            let navigate = use_navigate();
-            navigate("/login", Default::default());
-        }
-    });
+   // Check authentication server-side before rendering
+    let auth_check = move || {
+        let session = auth_session();
+        matches!(session, Some(session) if !session.access_token.is_empty())
+    };
+    
+    // If not authenticated on server-side, redirect immediately
+    if !auth_check() {
+        return view! { <Redirect path="/login" /> }.into_any();
+    } 
 
     let on_convert = move |_| {
         let url = url_input.get();
@@ -86,12 +77,15 @@ pub fn HomePage() -> impl IntoView {
 
     #[cfg(feature = "hydrate")]
     let on_logout = move |_| {
-        spawn_local(async {
-            if sign_out().await.is_ok() {
-                let navigate = use_navigate();
-                navigate("/login", Default::default());
-            } else {
-                leptos::logging::log!("Logout failed");
+        spawn_local(async move {
+            match sign_out().await {
+                Ok(_) => {
+                    let navigate = use_navigate();
+                    navigate("/login", Default::default());
+                }
+                Err(e) => {
+                    leptos::logging::error!("Failed to sign out: {:?}", e);
+                }
             }
         });
     };
@@ -105,15 +99,16 @@ pub fn HomePage() -> impl IntoView {
             <div class="bg-gray-900/50 backdrop-blur-sm">
                 <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
                     <div class="text-white">
-                        {move || {
-                            let session = auth_session.get();
-                            view! {
-                                <span class="text-sm text-gray-300">
-                                    "Logged in as "
-                                    <span class="font-medium text-white">{session.email}</span>
-                                </span>
-                            }
-                        }}
+                        <span class="text-sm text-gray-300">
+                            "Logged in as "
+                            <span class="font-medium text-white">
+                                {move || {
+                                    auth_session().map_or("Guest".to_string(), |session| {
+                                        session.email.clone()
+                                    })
+                                }}
+                            </span>
+                        </span>
                     </div>
                     <button
                         on:click=on_logout
@@ -266,5 +261,5 @@ pub fn HomePage() -> impl IntoView {
                 </div>
             </div>
         </div>
-    }
+    }.into_any()
 }
