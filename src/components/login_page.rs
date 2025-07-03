@@ -3,7 +3,7 @@ use leptos::{ev::SubmitEvent, prelude::*, task::spawn_local};
 use leptos_router::hooks::use_navigate;
 
 #[cfg(feature = "hydrate")]
-use crate::components::auth::{sign_in_with_email, sign_up_with_email};
+use crate::components::auth::{sign_in_with_email, sign_up_with_email, use_auth_session};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -12,6 +12,9 @@ pub fn LoginPage() -> impl IntoView {
     let (error_message, set_error_message) = signal(None::<String>);
     let (success_message, set_success_message) = signal(None::<String>);
     let (is_loading, set_is_loading) = signal(false);
+
+    #[cfg(feature = "hydrate")]
+    let (_, set_auth_session) = use_auth_session();
 
     #[cfg(feature = "hydrate")]
     let navigate = use_navigate();
@@ -40,7 +43,7 @@ pub fn LoginPage() -> impl IntoView {
                 // Use spawn_local for WASM compatibility
                 use leptos::logging;
 
-                match sign_in_with_email(email_val.clone(), password_val.clone()).await {
+                match sign_in_with_email(email_val.clone(), password_val.clone(), set_auth_session).await {
                     Ok(auth) => {
                         if auth.data.session.is_some() {
                             logging::log!("Login successful, session found");
@@ -59,7 +62,7 @@ pub fn LoginPage() -> impl IntoView {
                         logging::log!("Login failed, attempting to sign up: {:?}", login_error);
 
                         // If login failed (user might not exist), try to sign up
-                        match sign_up_with_email(email_val, password_val).await {
+                        match sign_up_with_email(email_val, password_val, set_auth_session).await {
                             Ok(auth) => {
                                 logging::log!("Signup response: {:?}", auth);
 
