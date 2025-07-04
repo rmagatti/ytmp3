@@ -20,7 +20,7 @@ pub fn HomePage() -> impl IntoView {
     let error_message = RwSignal::new(Option::<String>::None);
     let conversion_id = RwSignal::new(Option::<String>::None);
 
-    let (auth_session, _) = use_auth_session();
+    let (auth_session, set_auth_session) = use_auth_session();
 
     let on_convert = move |_| {
         let url = url_input.get();
@@ -64,7 +64,6 @@ pub fn HomePage() -> impl IntoView {
 
     #[cfg(feature = "hydrate")]
     let on_logout = move |_| {
-        let (_, set_auth_session) = use_auth_session();
         leptos::task::spawn_local(async move {
             match sign_out(set_auth_session).await {
                 Ok(_) => {
