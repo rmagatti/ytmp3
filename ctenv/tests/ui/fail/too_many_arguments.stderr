@@ -1,0 +1,5 @@
+error: unexpected token
+ --> tests/ui/fail/too_many_arguments.rs:7:29
+  |
+7 |     let _var = ctenv!("VAR1", "VAR2");
+  |                             ^
