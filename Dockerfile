@@ -12,6 +12,9 @@ COPY . .
 # Install dependencies using Bun (including daisyui)
 RUN bun install
 
+ENV SUPABASE_URL="https://qxwrqmpcoqfpcytunyim.supabase.co"
+ENV SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4d3JxbXBjb3FmcGN5dHVueWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExNjg4MjIsImV4cCI6MjA2Njc0NDgyMn0.tCVbSwEdFcRVi4ow82R4pGComSXE3UfhPr5LjMsc1Cw"
+
 RUN cargo leptos build --release
 
 FROM ubuntu:plucky AS runner
