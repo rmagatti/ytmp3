@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+@plugin "@tailwindcss/typography";
+
+@source "./src/**/*.rs";
+
+@plugin "daisyui" {
+  themes: all
+}
+
+
+/* @plugin "daisyui" { */
+/*     themes: [ */
+/*         "light", */ 
+/*         "dark", */ 
+/*         "cupcake", */ 
+/*         "cyberpunk", */ 
+/*         "synthwave", */ 
+/*         "valentine", */ 
+/*         "aqua", */
+/*         "luxury", */
+/*         "dracula", */
+/*         "sunset" */
+/*     ]; */
+/*     darkTheme: "dark"; */
+/*     base: true; */
+/*     styled: true; */
+/*     utils: true; */
+/*     prefix: ""; */
+/*     logs: true; */
+/*     themeRoot: ":root"; */
+/* } */
