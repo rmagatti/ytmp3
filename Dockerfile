@@ -2,7 +2,8 @@ FROM ghcr.io/ekshore/cargo-leptos-runner-nightly:latest AS builder
 
 WORKDIR /build
 
-# Install Bun for handling daisyui and other dependencies
+# Install unzip and curl, then install Bun for handling daisyui and other dependencies
+RUN apt-get update && apt-get install -y unzip curl && apt-get clean
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
