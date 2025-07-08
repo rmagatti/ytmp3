@@ -14,7 +14,7 @@ use syn::{parse_macro_input, LitStr};
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use ctenv::ctenv;
 ///
 /// // This will be resolved at compile time if SUPABASE_URL is available,
@@ -29,6 +29,11 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
 
     // 1. Real compile-time environment (cargo build SUPABASE_URL=...)
     if let Ok(val) = std::env::var(&var_name) {
+        #[cfg(feature = "tracing")]
+        tracing::debug!(
+            "found value for {} in environment at compile time",
+            var_name
+        );
         return quote!(#val.to_string()).into();
     }
 
@@ -36,6 +41,8 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
     if let Ok(iter) = dotenvy::from_path_iter(".env") {
         for item in iter.flatten() {
             if item.0 == var_name {
+                #[cfg(feature = "tracing")]
+                tracing::debug!("found value for {} in .env at compile time", var_name);
                 let val = item.1;
                 return quote!(#val.to_string()).into();
             }
@@ -44,6 +51,11 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
 
     // 3. Fallback – generate code that tries at run-time
     // (still panics if the var is missing then)
+    #[cfg(feature = "tracing")]
+    tracing::debug!(
+        "deferring resolution of {} to runtime",
+        var_name
+    );
     let tokens = quote! {
         ::std::env::var(#var_name)
              .expect(concat!("Environment variable ", #var_name, " is not set"))
