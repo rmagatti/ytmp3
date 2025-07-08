@@ -10,10 +10,25 @@ FROM ubuntu:plucky AS runner
 
 WORKDIR /app
 
+# Install yt-dlp and dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    curl \
+    ca-certificates \
+    git \
+    && pip3 install --break-system-packages git+https://github.com/yt-dlp/yt-dlp.git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /build/target/release/server /app/server
 COPY --from=builder /build/target/site /app/site
 
-RUN useradd -ms /bin/bash app
+RUN mkdir -p /home && \
+    useradd -ms /bin/bash app && \
+    chown app:app /home/app && \
+    chmod 755 /home/app
 USER app
 
 ENV RUST_LOG="info"

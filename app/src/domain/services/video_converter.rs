@@ -51,6 +51,7 @@ pub mod server {
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::process::Stdio;
+    use leptos::logging::log;
     use tempfile::TempDir;
     use tokio::process::Command;
     use uuid::Uuid;
@@ -86,7 +87,9 @@ pub mod server {
         let job_id = Uuid::new_v4().to_string();
 
         // Create temporary directory for this job
-        let temp_dir = tempfile::tempdir()?;
+        let temp_dir = tempfile::Builder::new()
+            .prefix("ytmp3_")
+            .tempdir_in("/home/app")?;
 
         let job = ConversionJob {
             id: job_id.clone(),
@@ -174,146 +177,176 @@ pub mod server {
     }
 
     async fn process_conversion(job_id: String, url: String) {
-        // Download video using yt-dlp
-        let temp_dir_path = {
-            let jobs = JOB_STORE.read().await;
-            if let Some(job) = jobs.get(&job_id) {
-                job.temp_dir.path().to_path_buf()
-            } else {
-                return;
-            }
-        };
+          log!("Starting conversion for job {}: {}", job_id, url);
+          
+          let temp_dir_path = {
+              let jobs = JOB_STORE.read().await;
+              if let Some(job) = jobs.get(&job_id) {
+                  job.temp_dir.path().to_path_buf()
+              } else {
+                  log!("Job {} not found in store", job_id);
+                  return;
+              }
+          };
 
-        // Use yt-dlp to directly extract audio as MP3
-        let output_template = temp_dir_path.join("%(title)s.%(ext)s");
+          // Multiple retry strategies
+          let strategies = vec![
+              // Strategy 1: Android client (Docker-optimized)
+              vec![
+                  "--extractor-args", "youtube:player_client=android",
+                  "--user-agent", "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip",
+                  "--no-check-certificates",
+              ],
+              // Strategy 2: Android TV client (often works well in containers)
+              vec![
+                  "--extractor-args", "youtube:player_client=android_embedded",
+                  "--user-agent", "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip",
+              ],
+              // Strategy 3: iOS client
+              vec![
+                  "--extractor-args", "youtube:player_client=ios",
+                  "--user-agent", "com.google.ios.youtube/17.31.4 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)",
+              ],
+              // Strategy 4: Web client without cookies (Docker-safe)
+              vec![
+                  "--extractor-args", "youtube:player_client=web",
+                  "--user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "--add-header", "Accept-Language:en-US,en;q=0.9",
+              ],
+              // Strategy 5: Legacy method with Docker optimizations
+              vec![
+                  "--extractor-args", "youtube:player_client=web",
+                  "--compat-options", "prefer-legacy-http-handler",
+                  "--no-check-certificates",
+                  "--prefer-insecure",
+              ],
+              // Strategy 6: Minimal approach for containers
+              vec![
+                  "--extractor-args", "youtube:player_client=mediaconnect",
+                  "--socket-timeout", "30",
+              ],
+          ];
 
-        let download_result = Command::new("yt-dlp")
-            .arg(&url)
-            .arg("-x") // Extract audio
-            .arg("--audio-format")
-            .arg("mp3")
-            .arg("--audio-quality")
-            .arg("192K")
-            .arg("-o")
-            .arg(&output_template)
-            .arg("--restrict-filenames") // Use safe filenames
-            // Enhanced anti-bot measures
-            .arg("--user-agent")
-            .arg("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .arg("--referer")
-            .arg("https://www.youtube.com/")
-            .arg("--sleep-interval")
-            .arg("2")
-            .arg("--max-sleep-interval")
-            .arg("8")
-            .arg("--sleep-subtitles")
-            .arg("2")
-            .arg("--extractor-args")
-            .arg("youtube:player_client=android,ios,web;include_live_dash=false")
-            .arg("--no-check-certificates")
-            .arg("--prefer-free-formats")
-            // Additional anti-detection headers
-            .arg("--add-headers")
-            .arg("Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-            .arg("--add-headers") 
-            .arg("Accept-Language:en-US,en;q=0.5")
-            .arg("--add-headers")
-            .arg("Accept-Encoding:gzip, deflate, br")
-            .arg("--add-headers")
-            .arg("DNT:1")
-            .arg("--add-headers")
-            .arg("Connection:keep-alive")
-            .arg("--add-headers")
-            .arg("Upgrade-Insecure-Requests:1")
-            // Retry mechanism
-            .arg("--retries")
-            .arg("3")
-            .arg("--retry-sleep")
-            .arg("5")
-            // Use different extraction methods as fallback
-            .arg("--compat-options")
-            .arg("prefer-legacy-http-handler")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-        .await;
+          let mut final_mp3_path = None;
+          let mut last_error = String::new();
 
-        let mut final_mp3_path = None;
+          for (attempt, strategy) in strategies.iter().enumerate() {
+              log!("Job {} attempt {} with strategy: {:?}", job_id, attempt + 1, strategy);
 
-        match download_result {
-            Ok(output) => {
-                if output.status.success() {
-                    // Find the generated MP3 file
-                    if let Ok(mut entries) = tokio::fs::read_dir(&temp_dir_path).await {
-                        while let Ok(Some(entry)) = entries.next_entry().await {
-                            let path = entry.path();
-                            if path.extension().and_then(|s| s.to_str()) == Some("mp3") {
-                                final_mp3_path = Some(path);
-                                break;
-                            }
-                        }
-                    }
+              let mut cmd = Command::new("yt-dlp");
+              cmd.arg(&url)
+                  .arg("-x")
+                  .arg("--audio-format")
+                  .arg("mp3")
+                  .arg("--audio-quality")
+                  .arg("192K")
+                  .arg("-o")
+                  .arg("%(title)s.%(ext)s")
+                  .arg("--restrict-filenames")
+                  .current_dir(&temp_dir_path)
+                  .arg("--retries")
+                  .arg("2")
+                  .arg("--retry-sleep")
+                  .arg("3")
+                  .stdout(Stdio::piped())
+                  .stderr(Stdio::piped());
 
-                    // Update job status
-                    let mut jobs = JOB_STORE.write().await;
-                    if let Some(job) = jobs.get_mut(&job_id) {
-                        if let Some(mp3_path) = final_mp3_path {
-                            job.status = "completed".to_string();
-                            job.mp3_path = Some(mp3_path);
-                        } else {
-                            job.status = "error".to_string();
-                            job.error = Some("MP3 file not found after conversion".to_string());
-                        }
-                    }
-                } else {
-                    let error_msg = String::from_utf8_lossy(&output.stderr);
-                    let mut jobs = JOB_STORE.write().await;
-                    if let Some(job) = jobs.get_mut(&job_id) {
-                        job.status = "error".to_string();
+              // Add strategy-specific arguments
+              for arg in strategy {
+                  cmd.arg(arg);
+              }
 
-                        // Provide more user-friendly error messages
-                        let user_friendly_error = if error_msg
-                            .contains("Sign in to confirm you're not a bot")
-                        {
-                            "YouTube has detected automated access and is requesting verification. This is a temporary restriction. Please try again in a few minutes, or try a different video. Some videos may be more restricted than others.".to_string()
-                        } else if error_msg.contains("Video unavailable")
-                            || error_msg.contains("Private video")
-                        {
-                            "This video is unavailable. It may be private, deleted, or restricted in your region.".to_string()
-                        } else if error_msg.contains("age-restricted")
-                            || error_msg.contains("age_restricted")
-                        {
-                            "This video is age-restricted and cannot be downloaded without authentication.".to_string()
-                        } else if error_msg.contains("rate limit")
-                            || error_msg.contains("too many requests")
-                        {
-                            "YouTube is rate limiting requests. Please wait a few minutes before trying again.".to_string()
-                        } else if error_msg.contains("HTTP Error 429") {
-                            "Too many requests. Please wait a few minutes before trying again."
-                                .to_string()
-                        } else if error_msg.contains("premieres in") {
-                            "This video is a premiere that hasn't started yet. Please wait until it's available.".to_string()
-                        } else if error_msg.contains("live stream") {
-                            "Live streams cannot be downloaded. Please wait until the stream ends or try a regular video.".to_string()
-                        } else {
-                            format!(
-                                "Failed to download video: {}",
-                                error_msg.lines().take(2).collect::<Vec<_>>().join(" ")
-                            )
-                        };
+              // Add common anti-detection measures for non-android strategies
+              if !strategy.contains(&"youtube:player_client=android") {
+                  cmd.arg("--sleep-interval")
+                      .arg("1")
+                      .arg("--max-sleep-interval")
+                      .arg("3");
+              }
 
-                        job.error = Some(user_friendly_error);
-                    }
-                }
-            }
-            Err(e) => {
-                let mut jobs = JOB_STORE.write().await;
-                if let Some(job) = jobs.get_mut(&job_id) {
-                    job.status = "error".to_string();
-                    job.error = Some(format!("Failed to execute yt-dlp: {e}"));
-                }
-            }
-        }
+              let download_result = cmd.output().await;
+
+              match download_result {
+                  Ok(output) => {
+                      log!("Job {} attempt {} completed with status: {}", job_id, attempt + 1, output.status);
+                      log!("Job {} attempt {} stdout: {}", job_id, attempt + 1, String::from_utf8_lossy(&output.stdout));
+                      
+                      if output.status.success() {
+                          log!("Job {} attempt {} succeeded", job_id, attempt + 1);
+                          
+                          // Look for MP3 file
+                          if let Ok(mut entries) = tokio::fs::read_dir(&temp_dir_path).await {
+                              while let Ok(Some(entry)) = entries.next_entry().await {
+                                  let path = entry.path();
+                                  if path.extension().and_then(|s| s.to_str()) == Some("mp3") {
+                                      final_mp3_path = Some(path);
+                                      break;
+                                  }
+                              }
+                          }
+                          
+                          if final_mp3_path.is_some() {
+                              break; // Success!
+                          }
+                      } else {
+                          let error_msg = String::from_utf8_lossy(&output.stderr);
+                          last_error = error_msg.to_string();
+                          log!("Job {} attempt {} failed: {}", job_id, attempt + 1, error_msg);
+                          
+                          // If it's a rate limit or bot detection, wait before next attempt
+                          if error_msg.contains("Sign in to confirm") || 
+                             error_msg.contains("rate limit") ||
+                             error_msg.contains("429") {
+                              tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                          }
+                      }
+                  }
+                  Err(e) => {
+                      last_error = format!("Command execution failed: {}", e);
+                      log!("Job {} attempt {} command failed: {}", job_id, attempt + 1, e);
+                  }
+              }
+
+              // Small delay between attempts
+              if attempt < strategies.len() - 1 {
+                  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+              }
+          }
+
+          // Update job status based on results
+          let mut jobs = JOB_STORE.write().await;
+          if let Some(job) = jobs.get_mut(&job_id) {
+              if let Some(mp3_path) = final_mp3_path {
+                  job.status = "completed".to_string();
+                  job.mp3_path = Some(mp3_path);
+                  log!("Job {} completed successfully", job_id);
+              } else {
+                  job.status = "error".to_string();
+                  
+                  // Provide user-friendly error message
+                  let user_friendly_error = if last_error.contains("Sign in to confirm you're not a bot") {
+                      "YouTube is currently blocking automated downloads. This is temporary - please try again in 10-15 minutes, or try a different video.".to_string()
+                  } else if last_error.contains("Failed to extract any player response") {
+                      "YouTube has updated their protection. Please try again in a few minutes, or contact support if the issue persists.".to_string()
+                  } else if last_error.contains("Video unavailable") {
+                      "This video is unavailable. It may be private, deleted, or region-restricted.".to_string()
+                  } else if last_error.contains("age-restricted") || last_error.contains("age_restricted") {
+                      "This video is age-restricted and cannot be downloaded without authentication.".to_string()
+                  } else if last_error.contains("rate limit") || last_error.contains("too many requests") || last_error.contains("HTTP Error 429") {
+                      "YouTube is rate limiting requests. Please wait a few minutes before trying again.".to_string()
+                  } else if last_error.contains("premieres in") {
+                      "This video is a premiere that hasn't started yet. Please wait until it's available.".to_string()
+                  } else if last_error.contains("live stream") {
+                      "Live streams cannot be downloaded. Please wait until the stream ends or try a regular video.".to_string()
+                  } else {
+                      format!("Download failed after multiple attempts. Last error: {}", 
+                          last_error.lines().take(2).collect::<Vec<_>>().join(" "))
+                  };
+                  
+                  job.error = Some(user_friendly_error);
+                  log!("Job {} failed with error: {}", job_id, job.error.as_ref().unwrap());
+              }
+          }
     }
 
     pub fn is_valid_youtube_url(url: &str) -> bool {

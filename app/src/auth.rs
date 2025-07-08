@@ -38,16 +38,29 @@ pub fn use_auth_session() -> (Signal<Option<AuthSession>>, WriteSignal<Option<Au
             .path("/"),
     );
 
-    logging::log!("use_auth_session called, current session: {:?}", auth_session);
+    logging::log!("use_auth_session called, current session: {:?}", auth_session.get_untracked());
     (auth_session, set_auth_session)
 }
 
 #[cfg(feature = "hydrate")]
-pub fn create_supabase_client() -> supabase_js_rs::SupabaseClient {
-    let supabase_url = ctenv!("SUPABASE_URL");
-    let supabase_anon_key = ctenv!("SUPABASE_ANON_KEY");
+use std::cell::RefCell;
 
-    create_client(&supabase_url, &supabase_anon_key)
+#[cfg(feature = "hydrate")]
+thread_local! {
+    static SUPABASE_CLIENT: RefCell<Option<supabase_js_rs::SupabaseClient>> = RefCell::new(None);
+}
+
+#[cfg(feature = "hydrate")]
+pub fn get_supabase_client() -> supabase_js_rs::SupabaseClient {
+    SUPABASE_CLIENT.with(|client| {
+        let mut client_ref = client.borrow_mut();
+        if client_ref.is_none() {
+            let supabase_url = ctenv!("SUPABASE_URL");
+            let supabase_anon_key = ctenv!("SUPABASE_ANON_KEY");
+            *client_ref = Some(create_client(&supabase_url, &supabase_anon_key));
+        }
+        client_ref.as_ref().unwrap().clone()
+    })
 }
 
 /// Signs in a user with email and password.
@@ -62,7 +75,7 @@ pub async fn sign_in_with_email(
     password: String,
     set_auth_session: WriteSignal<Option<AuthSession>>,
 ) -> eyre::Result<Auth> {
-    let client = create_supabase_client();
+    let client = get_supabase_client();
     let result = client
         .auth()
         .sign_in_with_password(Credentials { email, password })
@@ -101,7 +114,7 @@ pub async fn sign_up_with_email(
     password: String,
     set_auth_session: WriteSignal<Option<AuthSession>>,
 ) -> eyre::Result<Auth> {
-    let client = create_supabase_client();
+    let client = get_supabase_client();
     let result = client.auth().sign_up(Credentials { email, password }).await;
 
     match result {
@@ -135,7 +148,7 @@ pub async fn sign_up_with_email(
 pub async fn sign_out(
     set_auth_session: WriteSignal<Option<AuthSession>>,
 ) -> Result<JsValue, JsValue> {
-    let client = create_supabase_client();
+    let client = get_supabase_client();
     let result = client.auth().sign_out().await;
 
     logging::log!("Sign-out result: {:?}", result);
@@ -152,7 +165,7 @@ pub async fn sign_out(
 /// invalid token, or other authentication-related problems.
 #[cfg(feature = "hydrate")]
 pub async fn get_user(token: &str) -> Result<User, JsValue> {
-    let client = create_supabase_client();
+    let client = get_supabase_client();
     let result = client.auth().get_user(Some(token)).await?;
     let response: GetUserResponse = serde_wasm_bindgen::from_value(result).map_err(JsValue::from)?;
     Ok(response.data.user)

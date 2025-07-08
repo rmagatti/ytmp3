@@ -2,24 +2,25 @@ use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
-    StaticSegment,
+    path,
 };
 
-use crate::components::home_page::HomePage;
-mod components;
+use crate::components::{home_page::HomePage, login_page::LoginPage, protected_page::Protected};
 mod auth;
+mod components;
 pub mod domain;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="en" data-theme="coffee">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <AutoReload options=options.clone()/>
                 <HydrationScripts options/>
                 <MetaTags/>
+                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
             </head>
             <body>
                 <App/>
@@ -43,7 +44,8 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Routes fallback=|| "Page not found.".into_view()>
-                    <Route path=StaticSegment("") view=HomePage/>
+                    <Route path=path!("") view=|| view! { <Protected><HomePage /></Protected> } />
+                    <Route path=path!("/login") view=LoginPage />
                 </Routes>
             </main>
         </Router>

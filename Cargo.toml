@@ -9,7 +9,7 @@ lto = true
 opt-level = 'z'
 
 [workspace.dependencies]
-leptos = { version = "0.8.2", features = ["nightly"] }
+leptos = { version = "0.8.2", features = ["nightly", "tracing"] }
 leptos_meta = { version = "0.8.2" }
 leptos_router = { version = "0.8.2", features = ["nightly"] }
 leptos_axum = { version = "0.8.2" }
@@ -54,6 +54,7 @@ site-pkg-dir = "pkg"
 
 # The tailwind input file (activates the tailwind build)
 tailwind-input-file = "./tailwind.css"
+tailwint-output-file = "start-axum-workspace.css"
 
 # Assets source dir. All files found here will be copied and synchronized to site-root.
 # The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.

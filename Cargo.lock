@@ -1355,6 +1355,7 @@ dependencies = [
  "tachys",
  "thiserror 2.0.12",
  "throw_error",
+ "tracing",
  "typed-builder",
  "typed-builder-macro",
  "wasm-bindgen",
@@ -1437,6 +1438,7 @@ dependencies = [
  "reactive_graph",
  "send_wrapper",
  "tachys",
+ "tracing",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -1494,6 +1496,7 @@ dependencies = [
  "rustc_version",
  "server_fn_macro",
  "syn",
+ "tracing",
  "uuid",
 ]
 
@@ -1569,6 +1572,7 @@ dependencies = [
  "serde_json",
  "server_fn",
  "tachys",
+ "tracing",
 ]
 
 [[package]]
@@ -2059,6 +2063,7 @@ dependencies = [
  "serde",
  "slotmap",
  "thiserror 2.0.12",
+ "tracing",
  "web-sys",
 ]
 
@@ -2556,6 +2561,7 @@ dependencies = [
  "send_wrapper",
  "slotmap",
  "throw_error",
+ "tracing",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -2848,7 +2854,19 @@ checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
 dependencies = [
  "log",
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81383ab64e72a7a8b8e13130c49e3dab29def6d0c7d76a03087b3cf71c5c6903"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
