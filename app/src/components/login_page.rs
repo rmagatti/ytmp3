@@ -176,7 +176,7 @@ pub fn LoginPage() -> impl IntoView {
                                 </div>
                             </div>
                             <h1 class="text-4xl md:text-5xl font-bold">
-                                <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                                <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                                     "Welcome Back"
                                 </span>
                             </h1>
