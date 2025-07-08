@@ -2,7 +2,14 @@ FROM ghcr.io/ekshore/cargo-leptos-runner-nightly:latest AS builder
 
 WORKDIR /build
 
+# Install Bun for handling daisyui and other dependencies
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
+
 COPY . .
+
+# Install dependencies using Bun (including daisyui)
+RUN bun install
 
 RUN cargo leptos build --release
 
