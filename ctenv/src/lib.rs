@@ -1,4 +1,5 @@
 use proc_macro::TokenStream;
+use proc_macro_error::{proc_macro_error, emit_warning};
 use quote::quote;
 use syn::{parse_macro_input, LitStr};
 
@@ -21,6 +22,7 @@ use syn::{parse_macro_input, LitStr};
 /// // otherwise it will be resolved at runtime or panic if not set.
 /// let supabase_url = ctenv!("SUPABASE_URL");
 /// ```
+#[proc_macro_error]
 #[proc_macro]
 pub fn ctenv(input: TokenStream) -> TokenStream {
     // Parse the key passed to the macro
@@ -29,8 +31,8 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
 
     // 1. Real compile-time environment (cargo build SUPABASE_URL=...)
     if let Ok(val) = std::env::var(&var_name) {
-        #[cfg(feature = "tracing")]
-        tracing::debug!(
+        emit_warning!(
+            var.span(),
             "found value for {} in environment at compile time",
             var_name
         );
@@ -41,8 +43,7 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
     if let Ok(iter) = dotenvy::from_path_iter(".env") {
         for item in iter.flatten() {
             if item.0 == var_name {
-                #[cfg(feature = "tracing")]
-                tracing::debug!("found value for {} in .env at compile time", var_name);
+                emit_warning!(var.span(), "found value for {} in .env at compile time", var_name);
                 let val = item.1;
                 return quote!(#val.to_string()).into();
             }
@@ -51,8 +52,8 @@ pub fn ctenv(input: TokenStream) -> TokenStream {
 
     // 3. Fallback – generate code that tries at run-time
     // (still panics if the var is missing then)
-    #[cfg(feature = "tracing")]
-    tracing::debug!(
+    emit_warning!(
+        var.span(),
         "deferring resolution of {} to runtime",
         var_name
     );
